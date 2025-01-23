@@ -1,0 +1,12 @@
+data/books/*
+data/braille/*
+data/formatted/*
+data/pages/*
+data/revised-pages/*
+data/revisions/*
+data/back-translation/*
+data/text/*
+
+!.gitkeep
+
+__pycache__
