@@ -2,6 +2,7 @@ import os
 import math
 import sys
 import re
+import time
 
 # Conditionally import custom louis library
 
@@ -18,6 +19,18 @@ try:
     import adsk.core, adsk.fusion, adsk.cam, traceback
 except:
     fusion_library_is_installed = False
+
+# Define fusion entrypoint method
+
+# IMPORTANT: Right click root element in browser tree and click "Do not capture Design History" for performance
+# IMPORTANT: Grid settings to Fixed, 1000 mm x 5 by preference
+# IMPORTANT: Only layout grid checkbox enabled
+# IMPORTANT: Control + 7 to enter wireframe render
+
+def run(context):
+    book = Book()
+    book.pages_directory_path = "C:\\Users\\ramit\\AppData\\Roaming\\Autodesk\\Autodesk Fusion 360\\API\\Scripts\\braillest\\data\\revised-pages\\"
+    book.generate_page_plates()
 
 # Notes:
 
@@ -56,26 +69,26 @@ class Book:
         self.remove_trailing_whitespace = True
 
         # Begin of assembly config
-        self.tolerance = 0.2
-        self.plate_z = 1
-        self.dot_radius = 0.75
-        self.dot_z_size = 0.5
+        self.tolerance = 0.2 / 10
+        self.plate_z = 1 / 10
+        self.dot_radius = 0.75 / 10
+        self.dot_z_size = 0.5 / 10
 
         # The offset of the dots
-        self.dot_x_offset = 1.75
-        self.dot_y_offset = 2.50
+        self.dot_x_offset = 1.75 / 10
+        self.dot_y_offset = 2.50 / 10
 
         # The spacing of the dots
-        self.dot_x_spacing = 2.5
-        self.dot_y_spacing = 2.5
+        self.dot_x_spacing = 2.5 / 10
+        self.dot_y_spacing = 2.5 / 10
 
         # Page size
-        self.page_x_size = 215.9 # 8.5 in
-        self.page_y_size = 279.4 # 11 in
+        self.page_x_size = 215.9 / 10 # 8.5 in
+        self.page_y_size = 279.4 / 10 # 11 in
 
         # Character size
-        self.character_x_size = 6
-        self.character_y_size = 10
+        self.character_x_size = 6 / 10
+        self.character_y_size = 10 / 10
 
         # Caculate the max size character grid given constraints
         # - 2 for 1 character border
@@ -315,16 +328,26 @@ class Book:
                 for line in page:
                     out_file.write(line)
 
-    def generate_page_plate(self, page_path):
+    def fusion_debug(self, message):
+        app = adsk.core.Application.get()
+        ui = app.userInterface
+        ui.messageBox(message)
+
+    profile_index = 0
+    sketch = None
+    point3d = None
+    cell_points = []
+    dot_points = []
+
+    def generate_page_plates(self):
 
         if not fusion_library_is_installed:
             sys.exit("Missing fusion packages")
             return
 
         app = adsk.core.Application.get()
-        ui = app.userInterface
-        ui.messageBox('Hi')
         design = app.activeProduct
+        self.point3d = adsk.core.Point3D
 
         # Get the root component of the active design
         root_component = design.rootComponent
@@ -332,138 +355,95 @@ class Book:
         # Create a new sketch on the XY plane
         sketches = root_component.sketches
         xyPlane = root_component.xYConstructionPlane
-        sketch = sketches.add(xyPlane)
+        lines = None
 
-        for line_index, line in enumerate(page):
+        with open(self.pages_directory_path + "1.txt", "r", encoding="utf-8") as file:
+            lines = file.readlines()
+
+        page_line = (self.character_x_count - 6) * self.space_character + "⠰⠏⠼⠚⠚⠚"
+        lines.append(page_line)
+
+        start = time.time_ns()
+
+        for line_index, line in enumerate(lines):
+
+            sketch = sketches.add(xyPlane)
+            sketch.isVisible = False
+
+            # Strip newline character and skip if line is now empty
+            line = line.rstrip("\n")
+            if line == "":
+                continue
+
             for character_index, character in enumerate(line):
-                self.sketch_braille_character(sketch, line_index, character_index, character)
 
-    def sketch_braille_character(self, sketch, line_index, character_index, character):
+                # Cell calculations
+                x_offset = self.line_x_offset + (character_index * self.character_x_size)
+                y_offset = self.line_y_offset + ((self.character_y_count - line_index) * self.character_y_size)
+                p1 = self.point3d.create(x_offset, y_offset, 0)
+                p3 = self.point3d.create(x_offset + self.character_x_size, y_offset - self.character_y_size, 0)
+                self.cell_points.append([p1, p3])
 
-        if not fusion_library_is_installed:
-            sys.exit("Missing fusion packages")
-            return
+                # Dot calculations
+                delta = ord(character) - ord(self.space_character)
+                binary = f"{delta:06b}"[::-1] # reverse to little endian
+                x_offset += self.dot_x_offset
+                y_offset -= self.dot_y_offset
+                if binary[0] == "1":
+                    d1 = self.point3d.create(x_offset, y_offset, 0)
+                    self.dot_points.append([d1, self.dot_radius])
+                    self.dot_points.append([d1, self.dot_radius + self.tolerance])
+                if binary[1] == "1":
+                    d2 = self.point3d.create(x_offset, y_offset - self.dot_y_spacing, 0)
+                    self.dot_points.append([d2, self.dot_radius])
+                    self.dot_points.append([d2, self.dot_radius + self.tolerance])
+                if binary[2] == "1":
+                    d3 = self.point3d.create(x_offset, y_offset - (self.dot_y_spacing * 2), 0)
+                    self.dot_points.append([d3, self.dot_radius])
+                    self.dot_points.append([d3, self.dot_radius + self.tolerance])
+                if binary[3] == "1":
+                    d4 = self.point3d.create(x_offset + self.dot_x_spacing, y_offset, 0)
+                    self.dot_points.append([d4, self.dot_radius])
+                    self.dot_points.append([d4, self.dot_radius + self.tolerance])
+                if binary[4] == "1":
+                    d5 = self.point3d.create(x_offset + self.dot_x_spacing, y_offset - self.dot_y_spacing, 0)
+                    self.dot_points.append([d5, self.dot_radius])
+                    self.dot_points.append([d5, self.dot_radius + self.tolerance])
+                if binary[5] == "1":
+                    d6 = self.point3d.create(x_offset + self.dot_x_spacing, y_offset - (self.dot_y_spacing * 2), 0)
+                    self.dot_points.append([d6, self.dot_radius])
+                    self.dot_points.append([d6, self.dot_radius + self.tolerance])
 
-        sketchLines = sketch.sketchCurves.sketchLines
+            sketchCurves = sketch.sketchCurves
 
-        # p1 p4
-        # p2 p3
+            sketchCircles = sketchCurves.sketchCircles
+            for point, radius in self.dot_points:
+                sketchCircles.addByCenterRadius(point, radius)
 
-        p1, p2, p3, p4 = self.calculate_character_cell_points(line_index, character_index)
+            # sketchLines = sketchCurves.sketchLines
+            # for p1, p3 in self.cell_points:
+            #     sketchLines.addTwoPointRectangle(p1, p3)
 
-        # Draw cell bounding box
-        line1 = sketchLines.addByTwoPoints(p1, p2)
-        line2 = sketchLines.addByTwoPoints(p2, p3)
-        line3 = sketchLines.addByTwoPoints(p3, p4)
-        line4 = sketchLines.addByTwoPoints(p4, p1)
+            x1 = self.line_x_offset
+            y1 = self.line_y_offset + ((self.character_y_count - line_index) * self.character_y_size)
+            x2 = x1 + (self.character_x_size * self.character_x_count)
+            y2 = y1 - self.character_y_size
+            p1 = self.point3d.create(x1, y1, 0)
+            p3 = self.point3d.create(x2, y2, 0)
+            sketchCurves.sketchLines.addTwoPointRectangle(p1, p3)
 
-        # Extrude cell
-        app = adsk.core.Application.get()
-        ui = app.userInterface
-        ui.messageBox('Hi')
-        design = app.activeProduct
-        root_component = design.rootComponent
-        profiles = sketch.profiles
-        cell_profile = profiles.item(0)
-        amount = adsk.core.ValueInput.createByReal(self.plate_z)
-        cell_extrusion = root_component.features.extrudeFeatures.addSimple(cell_profile, amount, adsk.fusion.FeatureOperations.NewBodyFeatureOperation)
-        cell_body = cell_extrusion.bodies.item(0)
-        cell_body.name = "{line_index}:{character_index}"
+            self.dot_points = []
+            self.cell_points = []
 
-        # d1 d4
-        # d2 d5
-        # d3 d6
+        sketch = sketches.add(xyPlane)
+        sketch.isVisible = False
+        p1 = self.point3d.create(0, 0, 0)
+        p3 = self.point3d.create(self.page_x_size, self.page_y_size, 0)
+        sketch.sketchCurves.sketchLines.addTwoPointRectangle(p1, p3)
 
-        d1, d2, d3, d4, d5, d6 = self.calculate_character_dot_points(line_index, character_index)
+        end = time.time_ns()
+        difference = end - start
+        self.fusion_debug(f"{difference / 1000000000} s")
 
-        # Conditionally draw dots
-        delta = int(format(ord(self.space_character), "x")) - int(format(ord(character), "x"))
-        binary = f'{delta:08b[::-1]}' # reverse to little endian
-        if binary[0]:
-            sketch.sketchCurves.sketchCircles.addByCenterRadius(d1, self.dot_radius)
-            sketch.sketchCurves.sketchCircles.addByCenterRadius(d1, self.dot_radius + self.tolerance)
-        if binary[1]:
-            sketch.sketchCurves.sketchCircles.addByCenterRadius(d2, self.dot_radius)
-            sketch.sketchCurves.sketchCircles.addByCenterRadius(d2, self.dot_radius + self.tolerance)
-        if binary[2]:
-            sketch.sketchCurves.sketchCircles.addByCenterRadius(d3, self.dot_radius)
-            sketch.sketchCurves.sketchCircles.addByCenterRadius(d3, self.dot_radius + self.tolerance)
-        if binary[3]:
-            sketch.sketchCurves.sketchCircles.addByCenterRadius(d4, self.dot_radius)
-            sketch.sketchCurves.sketchCircles.addByCenterRadius(d4, self.dot_radius + self.tolerance)
-        if binary[4]:
-            sketch.sketchCurves.sketchCircles.addByCenterRadius(d5, self.dot_radius)
-            sketch.sketchCurves.sketchCircles.addByCenterRadius(d5, self.dot_radius + self.tolerance)
-        if binary[5]:
-            sketch.sketchCurves.sketchCircles.addByCenterRadius(d6, self.dot_radius)
-            sketch.sketchCurves.sketchCircles.addByCenterRadius(d6, self.dot_radius + self.tolerance)
-
-    # Utility Methods
-
-    def calculate_character_cell_points(self, line_index, character_index):
-
-        if not fusion_library_is_installed:
-            sys.exit("Missing fusion packages")
-            return
-
-        # p1 p4
-        # p2 p3
-
-        # calculate x, y of p1
-        x_offset = self.line_x_offset + (self.character_x_count - character_index) * self.character_x_size
-        y_offset = self.line_y_offset + (self.character_y_count - line_index) * self.character_y_size
-
-        p1 = adsk.core.Point3D.create(x_offset, y_offset, 0)
-        p2 = adsk.core.Point3D.create(x_offset, y_offset - self.character_y_size, 0)
-        p3 = adsk.core.Point3D.create(x_offset + self.character_x_size, y_offset - self.character_y_size, 0)
-        p4 = adsk.core.Point3D.create(x_offset + self.character_x_size, y_offset, 0)
-
-        return p1, p2, p3, p4
-
-    def calculate_character_dot_points(self, line_index, character_index):
-
-        if not fusion_library_is_installed:
-            sys.exit("Missing fusion packages")
-            return
-
-        # d1 d4
-        # d2 d5
-        # d3 d6
-
-        # calculate x, y of d1
-        x_offset = self.line_x_offset + ((self.character_x_count - character_index) * self.character_x_size) + self.dot_x_offset
-        y_offset = self.line_y_offset + ((self.character_y_count - line_index) * self.character_y_size) - self.dot_y_offset
-
-        d1 = adsk.core.Point3D.create(x_offset, y_offset, 0)
-        d2 = adsk.core.Point3D.create(x_offset, y_offset - self.dot_spacing, 0)
-        d3 = adsk.core.Point3D.create(x_offset, y_offset - (self.dot_spacing * 2), 0)
-        d4 = adsk.core.Point3D.create(x_offset + self.dot_spacing, y_offset, 0)
-        d5 = adsk.core.Point3D.create(x_offset + self.dot_spacing, y_offset - self.dot_spacing, 0)
-        d6 = adsk.core.Point3D.create(x_offset + self.dot_spacing, y_offset - (self.dot_spacing * 2), 0)
-
-        return d1, d2, d3, d4, d5, d6
-
-    def union_all_bodies_in_component(component):
-
-        if not fusion_library_is_installed:
-            sys.exit("Missing fusion packages")
-            return
-
-        # Validate component body count
-        bodies = component.bRepBodies
-        if bodies.count < 2:
-            return
-
-        # Needed vars to create feature input
-        combine_features = component.features.combineFeatures
-        target_body = bodies.item(0)
-        tool_bodies = adsk.core.ObjectCollection.create()
-        for z in range(1, bodies.count):
-            tool_bodies.add(bodies.item(z))
-
-        # Create feature input
-        combine_input = combine_features.createInput(target_body, tool_bodies)
-        combine_input.isKeepToolBodies = False
-        combine_input.isNewComponent = False
-        combine_input.operation = adsk.fusion.FeatureOperations.JoinFeatureOperation
-        combine_features.add(combine_input)
+        for sketch in root_component.sketches:
+            sketch.isVisible = True
