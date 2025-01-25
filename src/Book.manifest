@@ -1,0 +1,10 @@
+{
+	"autodeskProduct":	"Fusion",
+	"type":	"script",
+	"author":	"lewis@braillest.com",
+	"description":	{
+		"":	"This script converts paginated braille into 3d printed positive and negative molds"
+	},
+	"supportedOS":	"windows|mac",
+	"editEnabled":	true
+}
