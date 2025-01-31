@@ -6,11 +6,11 @@ scaling_factor = 1.005
 
 alignment_hole_x = 1 * scaling_factor
 alignment_hole_y = 4.5 * scaling_factor
-alignment_hole_z = 1.2
+alignment_hole_z = 1.4
 
 alignment_pin_x = 1 * scaling_factor
 alignment_pin_y = 4.5 * scaling_factor
-alignment_pin_z = 1
+alignment_pin_z = 1.2
 
 braille_dot_diameter = 1.5 * scaling_factor
 braille_dot_spacing = 2.5 * scaling_factor
@@ -37,10 +37,7 @@ paper_margin_x = 0.1
 paper_padding_x = (paper_x - content_x) / 2
 paper_padding_y = (paper_y - content_y) / 2
 
-line_x = paper_x
-line_y = 10 * scaling_factor
-
-mold_interface_z = 0.4
+mold_interface_z = 0.2
 mold_negative_z = alignment_hole_z + mold_interface_z
 
 negative_tab_x = 6.1 * scaling_factor
@@ -50,7 +47,10 @@ positive_tab_x = 6 * scaling_factor
 positive_tab_y = 1.5 * scaling_factor
 
 puzzle_x = 10 * scaling_factor
-puzzle_y = line_y
+puzzle_y = 10 * scaling_factor
+
+line_x = (content_x / 2) + paper_padding_x + paper_margin_x + (alignment_pin_x / 2) + (puzzle_x / 2)
+line_y = 10 * scaling_factor
 
 # Clear scene
 bpy.ops.object.select_all(action="SELECT")
@@ -134,7 +134,7 @@ def main():
 
 def draw_paper():
 
-    bpy.ops.mesh.primitive_cube_add(location=(paper_x / 2 , paper_y / 2, paper_z / 2))
+    bpy.ops.mesh.primitive_cube_add(location=(paper_x / 2 , paper_y / 2, mold_negative_z + braille_dot_z + (paper_z / 2)))
     paper = bpy.context.object
     paper.scale.x = paper_x / 2
     paper.scale.y = paper_y / 2
@@ -155,38 +155,38 @@ def draw_line(line_number):
     line.scale.y = cell_y / 2
     line.scale.z = mold_negative_z / 2
 
-    # Left positive and negative tab
-    positive_alignment_tab_obj.location.y = y + (line_y / 2) + positive_tab_y
-    negative_alignment_tab_obj.location.y = y - (line_y / 2) + negative_tab_y
-    positive_alignment_tab_obj.location.x = paper_margin_x - (alignment_pin_x / 2) - (positive_tab_x / 2)
+    # Left negative tab and difference
     negative_alignment_tab_obj.location.x = paper_margin_x - (alignment_pin_x / 2) - (negative_tab_x / 2)
+    negative_alignment_tab_obj.location.y = y - (line_y / 2) + negative_tab_y
     bool_modifier = line.modifiers.new(name="Negative Removal", type="BOOLEAN")
     bool_modifier.operation = "DIFFERENCE"
     bool_modifier.solver = "EXACT"
     bool_modifier.object = negative_alignment_tab_obj
     bpy.ops.object.modifier_apply(modifier=bool_modifier.name)
-    left_positive_alignment_tab_obj = positive_alignment_tab_obj.copy()
-    bpy.context.collection.objects.link(left_positive_alignment_tab_obj)
+    
 
-    # Union left tab
-    union_modifier = line.modifiers.new(name="Tab Union", type="BOOLEAN")
+    # Left positive tab and union
+    positive_alignment_tab_obj.location.x = paper_margin_x - (alignment_pin_x / 2) - (positive_tab_x / 2)
+    positive_alignment_tab_obj.location.y = y + (line_y / 2) + positive_tab_y
+    left_positive_alignment_tab_obj = positive_alignment_tab_obj.copy()
+    bpy.context.collection.objects.link(left_positive_alignment_tab_obj)    union_modifier = line.modifiers.new(name="Tab Union", type="BOOLEAN")
     union_modifier.operation = "UNION"
     union_modifier.solver = "EXACT"
     union_modifier.object = left_positive_alignment_tab_obj
     bpy.ops.object.modifier_apply(modifier=union_modifier.name)
 
-    # Right positive and negative tab
-    positive_alignment_tab_obj.location.x = paper_x + paper_margin_x + (alignment_pin_x / 2) - (positive_tab_x / 2)
+    # Right negative tab and difference
     negative_alignment_tab_obj.location.x = paper_x + paper_margin_x + (alignment_pin_x / 2) - (negative_tab_x / 2)
     bool_modifier = line.modifiers.new(name="Negative Removal", type="BOOLEAN")
     bool_modifier.operation = "DIFFERENCE"
     bool_modifier.solver = "EXACT"
     bool_modifier.object = negative_alignment_tab_obj
     bpy.ops.object.modifier_apply(modifier=bool_modifier.name)
+
+    # Right positive tab and union
+    positive_alignment_tab_obj.location.x = paper_x + paper_margin_x + (alignment_pin_x / 2) - (positive_tab_x / 2)
     right_positive_alignment_tab_obj = positive_alignment_tab_obj.copy()
     bpy.context.collection.objects.link(right_positive_alignment_tab_obj)
-
-    # Union right tab
     union_modifier = line.modifiers.new(name="Tab Union", type="BOOLEAN")
     union_modifier.operation = "UNION"
     union_modifier.solver = "EXACT"
@@ -195,7 +195,7 @@ def draw_line(line_number):
 
     # Alignment pin
     alignment_pin.location.x = -paper_margin_x - (alignment_hole_x / 2)
-    alignment_pin.location.y = y
+    alignment_pin.location.y = y + (negative_tab_y / 2)
     alignment_pin.location.z = mold_negative_z + (alignment_pin_z / 2)
     left_alignment_pin = alignment_pin.copy()
     bpy.context.collection.objects.link(left_alignment_pin)
