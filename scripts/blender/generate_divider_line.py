@@ -49,7 +49,7 @@ positive_tab_y = 1.5 * scaling_factor
 puzzle_x = 10 * scaling_factor
 puzzle_y = 10 * scaling_factor
 
-line_x = (content_x / 2) + paper_padding_x + paper_margin_x + (alignment_pin_x / 2) + (puzzle_x / 2)
+line_x = paper_x + paper_margin_x + (alignment_pin_x / 2) + (puzzle_x / 2)
 line_y = 10 * scaling_factor
 
 # Clear scene
@@ -147,7 +147,7 @@ def draw_line(line_number):
 
     # Line
     x = (paper_x / 2)
-    y = ((cell_y_count - line_number - 1) * cell_y) + (cell_y / 2) + paper_padding_y
+    y = ((cell_y_count - line_number - 1) * cell_y) + (cell_y / 2)
     z = (mold_negative_z / 2)
     bpy.ops.mesh.primitive_cube_add(location=(x , y, z))
     line = bpy.context.object
@@ -163,13 +163,13 @@ def draw_line(line_number):
     bool_modifier.solver = "EXACT"
     bool_modifier.object = negative_alignment_tab_obj
     bpy.ops.object.modifier_apply(modifier=bool_modifier.name)
-    
 
     # Left positive tab and union
     positive_alignment_tab_obj.location.x = paper_margin_x - (alignment_pin_x / 2) - (positive_tab_x / 2)
     positive_alignment_tab_obj.location.y = y + (line_y / 2) + positive_tab_y
     left_positive_alignment_tab_obj = positive_alignment_tab_obj.copy()
-    bpy.context.collection.objects.link(left_positive_alignment_tab_obj)    union_modifier = line.modifiers.new(name="Tab Union", type="BOOLEAN")
+    bpy.context.collection.objects.link(left_positive_alignment_tab_obj)
+    union_modifier = line.modifiers.new(name="Tab Union", type="BOOLEAN")
     union_modifier.operation = "UNION"
     union_modifier.solver = "EXACT"
     union_modifier.object = left_positive_alignment_tab_obj
