@@ -1,0 +1,12 @@
+services:
+
+  braillest_python:
+    container_name: braillest_python
+    build:
+      context: ./
+      dockerfile: docker/python/Dockerfile
+    image: braillest_python
+    volumes:
+      - ./data:/braillest/data
+      - ./scripts:/braillest/scripts
+      - ./src:/braillest/src
