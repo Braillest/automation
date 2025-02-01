@@ -128,21 +128,21 @@ braille_dot_y = 0.0
 braille_dot_z = mold_negative_d
 braille_dot_location = (braille_dot_x, braille_dot_y, braille_dot_z)
 braille_dot_scale = (braille_dot_diameter / 2, braille_dot_diameter / 2, braille_dot_d / 2)
-braille_dot_mesh = bpy.ops.mesh.primitive_ico_sphere_add(scale=braille_dot_scale, location=braille_dot_location)
+braille_dot_mesh = bpy.ops.mesh.primitive_uv_sphere_add(scale=braille_dot_scale, location=braille_dot_location, segments=12, ring_count=6)
 braille_dot_obj = bpy.context.object
 
 def main():
 
     # draw_paper()
 
-#    with open(file_path, "r", encoding="utf-8") as file:
-#        lines = file.readlines()
+    with open(file_path, "r", encoding="utf-8") as file:
+        lines = file.readlines()
 
-    lines = ["⠿⠿⠿⠿⠿⠿⠿⠿⠿⠿⠿⠿⠿⠿⠿⠿⠿⠿⠿⠿⠿⠿⠿⠿⠿⠿⠿⠿⠿⠿⠿⠿⠿"] * cell_y_count
+    # Worst case page override for debugging
+    # lines = ["⠿⠿⠿⠿⠿⠿⠿⠿⠿⠿⠿⠿⠿⠿⠿⠿⠿⠿⠿⠿⠿⠿⠿⠿⠿⠿⠿⠿⠿⠿⠿⠿⠿"] * cell_y_count
 
     for index, text in enumerate(lines):
-        draw_line(index, text)
-        break
+        draw_line(index, text.rstrip())
 
     # Remove persistent tools
     bpy.data.objects.remove(positive_alignment_tab_obj, do_unlink=True)
@@ -168,8 +168,6 @@ def draw_paper():
 
 def draw_line(line_index, text):
 
-    print(text)
-
     # Line
     line_x = (paper_w / 2)
     line_y = ((cell_y_count - line_index - 1) * cell_h) + (cell_h / 2) + paper_padding_y
@@ -181,99 +179,69 @@ def draw_line(line_index, text):
     line_obj.name = f"Line {line_index:03}"
     line_obj.data.name = f"Line {line_index:03} mesh"
 
+    # Line union collection
+    union_collection = bpy.data.collections.new("Union Collection")
+    bpy.context.scene.collection.children.link(union_collection)
+
+    # Line difference collection
+    difference_collection = bpy.data.collections.new("Difference Collection")
+    bpy.context.scene.collection.children.link(difference_collection)
+
     # Left negative tab and difference
     negative_alignment_tab_obj.location.x = -paper_margin_x - (alignment_pin_w / 2)
     negative_alignment_tab_obj.location.y = line_y - line_h + 0.5
     left_negative_alignment_tab_obj = negative_alignment_tab_obj.copy()
-    bool_modifier = line_obj.modifiers.new(name="Negative Removal", type="BOOLEAN")
-    bool_modifier.operation = "DIFFERENCE"
-    bool_modifier.solver = "EXACT"
-    bool_modifier.object = left_negative_alignment_tab_obj
-    bpy.ops.object.modifier_apply(modifier=bool_modifier.name)
+    difference_collection.objects.link(left_negative_alignment_tab_obj)
 
     # Left positive tab and union
     positive_alignment_tab_obj.location.x = -paper_margin_x - (alignment_pin_w / 2)
     positive_alignment_tab_obj.location.y = line_y + 0.5
     left_positive_alignment_tab_obj = positive_alignment_tab_obj.copy()
-    bpy.context.collection.objects.link(left_positive_alignment_tab_obj)
-    union_modifier = line_obj.modifiers.new(name="Tab Union", type="BOOLEAN")
-    union_modifier.operation = "UNION"
-    union_modifier.solver = "EXACT"
-    union_modifier.object = left_positive_alignment_tab_obj
-    bpy.ops.object.modifier_apply(modifier=union_modifier.name)
+    union_collection.objects.link(left_positive_alignment_tab_obj)
 
     # Right negative tab and difference
     negative_alignment_tab_obj.location.x = paper_w + paper_margin_x + (alignment_pin_w / 2)
     right_negative_alignment_tab_obj = negative_alignment_tab_obj.copy()
-    bool_modifier = line_obj.modifiers.new(name="Negative Removal", type="BOOLEAN")
-    bool_modifier.operation = "DIFFERENCE"
-    bool_modifier.solver = "EXACT"
-    bool_modifier.object = right_negative_alignment_tab_obj
-    bpy.ops.object.modifier_apply(modifier=bool_modifier.name)
+    difference_collection.objects.link(right_negative_alignment_tab_obj)
 
     # Right positive tab and union
     positive_alignment_tab_obj.location.x = paper_w + paper_margin_x + (alignment_pin_w / 2)
     right_positive_alignment_tab_obj = positive_alignment_tab_obj.copy()
-    bpy.context.collection.objects.link(right_positive_alignment_tab_obj)
-    union_modifier = line_obj.modifiers.new(name="Tab Union", type="BOOLEAN")
-    union_modifier.operation = "UNION"
-    union_modifier.solver = "EXACT"
-    union_modifier.object = right_positive_alignment_tab_obj
-    bpy.ops.object.modifier_apply(modifier=union_modifier.name)
+    union_collection.objects.link(right_positive_alignment_tab_obj)
 
-    # Left alignment pin
+    # Left alignment pin and union
     alignment_pin_obj.location.x = -paper_margin_x - (alignment_pin_w / 2)
     alignment_pin_obj.location.y = line_y + (1.5 / 2)
     alignment_pin_obj.location.z = mold_negative_d + (alignment_pin_d / 2)
     left_alignment_pin_obj = alignment_pin_obj.copy()
-    bpy.context.collection.objects.link(left_alignment_pin_obj)
-    union_modifier = line_obj.modifiers.new(name="Pin Union", type="BOOLEAN")
-    union_modifier.operation = "UNION"
-    union_modifier.solver = "EXACT"
-    union_modifier.object = left_alignment_pin_obj
-    bpy.ops.object.modifier_apply(modifier=union_modifier.name)
+    union_collection.objects.link(left_alignment_pin_obj)
 
-    # Right alignment pin
+    # Right alignment pin and union
     alignment_pin_obj.location.x = paper_w + paper_margin_x + (alignment_pin_w / 2)
     right_alignment_pin_obj = alignment_pin_obj.copy()
-    bpy.context.collection.objects.link(right_alignment_pin_obj)
-    union_modifier = line_obj.modifiers.new(name="Pin Union", type="BOOLEAN")
-    union_modifier.operation = "UNION"
-    union_modifier.solver = "EXACT"
-    union_modifier.object = right_alignment_pin_obj
-    bpy.ops.object.modifier_apply(modifier=union_modifier.name)
+    union_collection.objects.link(right_alignment_pin_obj)
 
-    # Left alignment hole
+    # Left alignment hole and difference
     alignment_hole_obj.location.x = -paper_margin_x - (alignment_hole_w / 2)
     alignment_hole_obj.location.y = line_y + (1.5 / 2)
     alignment_hole_obj.location.z = 0
     left_alignment_hole_obj = alignment_hole_obj.copy()
-    bpy.context.collection.objects.link(left_alignment_hole_obj)
-    bool_modifier = line_obj.modifiers.new(name="Negative Removal", type="BOOLEAN")
-    bool_modifier.operation = "DIFFERENCE"
-    bool_modifier.solver = "EXACT"
-    bool_modifier.object = left_alignment_hole_obj
-    bpy.ops.object.modifier_apply(modifier=bool_modifier.name)
+    difference_collection.objects.link(left_alignment_hole_obj)
 
-    # Right alignment hole
+    # Right alignment hole and difference
     alignment_hole_obj.location.x = paper_w + paper_margin_x + (alignment_hole_w / 2)
     right_alignment_hole_obj = alignment_hole_obj.copy()
-    bpy.context.collection.objects.link(right_alignment_hole_obj)
-    bool_modifier = line_obj.modifiers.new(name="Negative Removal", type="BOOLEAN")
-    bool_modifier.operation = "DIFFERENCE"
-    bool_modifier.solver = "EXACT"
-    bool_modifier.object = right_alignment_hole_obj
-    bpy.ops.object.modifier_apply(modifier=bool_modifier.name)
+    difference_collection.objects.link(right_alignment_hole_obj)
 
     # Remove tools
-    bpy.data.objects.remove(left_positive_alignment_tab_obj, do_unlink=True)
-    bpy.data.objects.remove(right_positive_alignment_tab_obj, do_unlink=True)
-    bpy.data.objects.remove(left_negative_alignment_tab_obj, do_unlink=True)
-    bpy.data.objects.remove(right_negative_alignment_tab_obj, do_unlink=True)
-    bpy.data.objects.remove(left_alignment_pin_obj, do_unlink=True)
-    bpy.data.objects.remove(right_alignment_pin_obj, do_unlink=True)
-    bpy.data.objects.remove(left_alignment_hole_obj, do_unlink=True)
-    bpy.data.objects.remove(right_alignment_hole_obj, do_unlink=True)
+    # bpy.data.objects.remove(left_positive_alignment_tab_obj, do_unlink=True)
+    # bpy.data.objects.remove(right_positive_alignment_tab_obj, do_unlink=True)
+    # bpy.data.objects.remove(left_negative_alignment_tab_obj, do_unlink=True)
+    # bpy.data.objects.remove(right_negative_alignment_tab_obj, do_unlink=True)
+    # bpy.data.objects.remove(left_alignment_pin_obj, do_unlink=True)
+    # bpy.data.objects.remove(right_alignment_pin_obj, do_unlink=True)
+    # bpy.data.objects.remove(left_alignment_hole_obj, do_unlink=True)
+    # bpy.data.objects.remove(right_alignment_hole_obj, do_unlink=True)
 
     # Draw dots
     for character_index, character in enumerate(text):
@@ -292,73 +260,65 @@ def draw_line(line_index, text):
         # 2 5
         delta = ord(character) - ord(space_character)
         binary = f"{delta:06b}"[::-1]
-        binary = "111111"
+        # binary = "111111"
 
         if binary[0] == "1":
             braille_dot_obj.location.x = dot_x_offset
             braille_dot_obj.location.y = dot_y_offset
             a_dot = braille_dot_obj.copy()
-            union_modifier = line_obj.modifiers.new(name="Dot Union", type="BOOLEAN")
-            union_modifier.operation = "UNION"
-            union_modifier.solver = "EXACT"
-            union_modifier.object = a_dot
-            bpy.ops.object.modifier_apply(modifier=union_modifier.name)
-            bpy.data.objects.remove(a_dot, do_unlink=True)
+            union_collection.objects.link(a_dot)
 
         if binary[1] == "1":
             braille_dot_obj.location.x = dot_x_offset
             braille_dot_obj.location.y = dot_y_offset - braille_dot_spacing
             b_dot = braille_dot_obj.copy()
-            union_modifier = line_obj.modifiers.new(name="Dot Union", type="BOOLEAN")
-            union_modifier.operation = "UNION"
-            union_modifier.solver = "EXACT"
-            union_modifier.object = b_dot
-            bpy.ops.object.modifier_apply(modifier=union_modifier.name)
-            bpy.data.objects.remove(b_dot, do_unlink=True)
+            union_collection.objects.link(b_dot)
 
         if binary[2] == "1":
             braille_dot_obj.location.x = dot_x_offset
             braille_dot_obj.location.y = dot_y_offset - (2 * braille_dot_spacing)
             c_dot = braille_dot_obj.copy()
-            union_modifier = line_obj.modifiers.new(name="Dot Union", type="BOOLEAN")
-            union_modifier.operation = "UNION"
-            union_modifier.solver = "EXACT"
-            union_modifier.object = c_dot
-            bpy.ops.object.modifier_apply(modifier=union_modifier.name)
-            bpy.data.objects.remove(c_dot, do_unlink=True)
+            union_collection.objects.link(c_dot)
 
         if binary[3] == "1":
             braille_dot_obj.location.x = dot_x_offset - braille_dot_spacing
             braille_dot_obj.location.y = dot_y_offset
             d_dot = braille_dot_obj.copy()
-            union_modifier = line_obj.modifiers.new(name="Dot Union", type="BOOLEAN")
-            union_modifier.operation = "UNION"
-            union_modifier.solver = "EXACT"
-            union_modifier.object = d_dot
-            bpy.ops.object.modifier_apply(modifier=union_modifier.name)
-            bpy.data.objects.remove(d_dot, do_unlink=True)
+            union_collection.objects.link(d_dot)
 
         if binary[4] == "1":
             braille_dot_obj.location.x = dot_x_offset - braille_dot_spacing
             braille_dot_obj.location.y = dot_y_offset - braille_dot_spacing
             e_dot = braille_dot_obj.copy()
-            union_modifier = line_obj.modifiers.new(name="Dot Union", type="BOOLEAN")
-            union_modifier.operation = "UNION"
-            union_modifier.solver = "EXACT"
-            union_modifier.object = e_dot
-            bpy.ops.object.modifier_apply(modifier=union_modifier.name)
-            bpy.data.objects.remove(e_dot, do_unlink=True)
+            union_collection.objects.link(e_dot)
 
         if binary[5] == "1":
             braille_dot_obj.location.x = dot_x_offset - braille_dot_spacing
             braille_dot_obj.location.y = dot_y_offset - (2 * braille_dot_spacing)
             f_dot = braille_dot_obj.copy()
-            union_modifier = line_obj.modifiers.new(name="Dot Union", type="BOOLEAN")
-            union_modifier.operation = "UNION"
-            union_modifier.solver = "EXACT"
-            union_modifier.object = f_dot
-            bpy.ops.object.modifier_apply(modifier=union_modifier.name)
-            bpy.data.objects.remove(f_dot, do_unlink=True)
+            union_collection.objects.link(f_dot)
+
+    # Union
+    union_mod = line_obj.modifiers.new("Union Collection", type="BOOLEAN")
+    union_mod.operation = "UNION"
+    union_mod.solver = "EXACT"
+    union_mod.operand_type = "COLLECTION"
+    union_mod.collection = union_collection
+    bpy.ops.object.modifier_apply(modifier=union_mod.name)
+    for object in list(union_collection.objects):
+        bpy.data.objects.remove(object, do_unlink=True)
+    bpy.data.collections.remove(union_collection)
+
+    # Difference
+    difference_mod = line_obj.modifiers.new("Difference Collection", type="BOOLEAN")
+    difference_mod.operation = "DIFFERENCE"
+    difference_mod.solver = "EXACT"
+    difference_mod.operand_type = "COLLECTION"
+    difference_mod.collection = difference_collection
+    bpy.ops.object.modifier_apply(modifier=difference_mod.name)
+    for object in list(difference_collection.objects):
+        bpy.data.objects.remove(object, do_unlink=True)
+    bpy.data.collections.remove(difference_collection)
 
 if __name__ == "__main__":
     main()
