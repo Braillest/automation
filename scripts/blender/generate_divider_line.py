@@ -2,7 +2,11 @@ import bpy
 import math
 
 # Define global vars
+# file_path = "/braillest/data/revised-pages/1.txt"
+# file_path = "../../data/revised-pages/1.txt"
+file_path = "C:\\Users\\ramit\\Braillest\\automation\data\\revised-pages\\1.txt"
 scaling_factor = 1.005
+space_character = "⠀"
 
 alignment_hole_w = 1.1
 alignment_hole_h = 4.6
@@ -58,6 +62,7 @@ bpy.ops.object.mode_set(mode="OBJECT")
 bpy.ops.object.select_all(action="SELECT")
 bpy.ops.object.delete()
 
+# Positive tab tool
 positive_alignment_tab_vertices = [
     (0.0, 0.0, 0.0),
     (positive_tab_w / 2, positive_tab_h, 0.0),
@@ -83,7 +88,7 @@ bpy.ops.object.mode_set(mode="EDIT")
 bpy.ops.mesh.normals_make_consistent(inside=False)
 bpy.ops.object.mode_set(mode="OBJECT")
 
-# Negative tab
+# Negative tab tool
 negative_alignment_tab_vertices = [
     (0.0, 0.0, 0.0),
     (negative_tab_w / 2, negative_tab_h, 0.0),
@@ -109,28 +114,42 @@ bpy.ops.object.mode_set(mode="EDIT")
 bpy.ops.mesh.normals_make_consistent(inside=False)
 bpy.ops.object.mode_set(mode="OBJECT")
 
-# Alignment pin
+# Alignment pin tool
 bpy.ops.mesh.primitive_cube_add(scale=(alignment_pin_w / 2, alignment_pin_h / 2, alignment_pin_d / 2))
 alignment_pin_obj = bpy.context.object
 
-# Alignment hole
+# Alignment hole tool
 bpy.ops.mesh.primitive_cube_add(scale=(alignment_hole_w / 2, alignment_hole_h / 2, alignment_hole_d))
 alignment_hole_obj = bpy.context.object
 
+# Braille dot tool
+braille_dot_x = 0.0
+braille_dot_y = 0.0
+braille_dot_z = mold_negative_d
+braille_dot_location = (braille_dot_x, braille_dot_y, braille_dot_z)
+braille_dot_scale = (braille_dot_diameter / 2, braille_dot_diameter / 2, braille_dot_d / 2)
+braille_dot_mesh = bpy.ops.mesh.primitive_ico_sphere_add(scale=braille_dot_scale, location=braille_dot_location)
+braille_dot_obj = bpy.context.object
+
 def main():
 
-    draw_paper()
+    # draw_paper()
 
-    for y in range(cell_y_count):
-        draw_line(y)
-        for x in range(cell_x_count):
-            pass
+#    with open(file_path, "r", encoding="utf-8") as file:
+#        lines = file.readlines()
+
+    lines = ["⠿⠿⠿⠿⠿⠿⠿⠿⠿⠿⠿⠿⠿⠿⠿⠿⠿⠿⠿⠿⠿⠿⠿⠿⠿⠿⠿⠿⠿⠿⠿⠿⠿"] * cell_y_count
+
+    for index, text in enumerate(lines):
+        draw_line(index, text)
+        break
 
     # Remove persistent tools
     bpy.data.objects.remove(positive_alignment_tab_obj, do_unlink=True)
     bpy.data.objects.remove(negative_alignment_tab_obj, do_unlink=True)
     bpy.data.objects.remove(alignment_pin_obj, do_unlink=True)
     bpy.data.objects.remove(alignment_hole_obj, do_unlink=True)
+    bpy.data.objects.remove(braille_dot_obj, do_unlink=True)
 
 def draw_paper():
 
@@ -147,18 +166,20 @@ def draw_paper():
     paper_mat.diffuse_color = (0.8, 0.9, 0.9, 1.0) # RGBA
     paper_obj.data.materials.append(paper_mat)
 
-def draw_line(line_number):
+def draw_line(line_index, text):
+
+    print(text)
 
     # Line
     line_x = (paper_w / 2)
-    line_y = ((cell_y_count - line_number - 1) * cell_h) + (cell_h / 2) + paper_padding_y
+    line_y = ((cell_y_count - line_index - 1) * cell_h) + (cell_h / 2) + paper_padding_y
     line_z = (mold_negative_d / 2)
     line_location = (line_x, line_y, line_z)
     line_scale = (line_w / 2, line_h / 2, line_d / 2)
     line_mesh = bpy.ops.mesh.primitive_cube_add(location=line_location, scale=line_scale)
     line_obj = bpy.context.object
-    line_obj.name = f"Line {line_number:03}"
-    line_obj.data.name = "Line {line_number:03} mesh"
+    line_obj.name = f"Line {line_index:03}"
+    line_obj.data.name = f"Line {line_index:03} mesh"
 
     # Left negative tab and difference
     negative_alignment_tab_obj.location.x = -paper_margin_x - (alignment_pin_w / 2)
@@ -253,6 +274,91 @@ def draw_line(line_number):
     bpy.data.objects.remove(right_alignment_pin_obj, do_unlink=True)
     bpy.data.objects.remove(left_alignment_hole_obj, do_unlink=True)
     bpy.data.objects.remove(right_alignment_hole_obj, do_unlink=True)
+
+    # Draw dots
+    for character_index, character in enumerate(text):
+
+        # NW corner
+        cell_x_offset = paper_padding_x + ((character_index + 1) * cell_w)
+        cell_y_offset = paper_padding_y + ((cell_y_count - line_index) * cell_h)
+
+        # NW dot
+        dot_x_offset = cell_x_offset + cell_padding_x
+        dot_y_offset = cell_y_offset - cell_padding_y
+
+        # Little endian dot calculation
+        # 0 3
+        # 1 4
+        # 2 5
+        delta = ord(character) - ord(space_character)
+        binary = f"{delta:06b}"[::-1]
+        binary = "111111"
+
+        if binary[0] == "1":
+            braille_dot_obj.location.x = dot_x_offset
+            braille_dot_obj.location.y = dot_y_offset
+            a_dot = braille_dot_obj.copy()
+            union_modifier = line_obj.modifiers.new(name="Dot Union", type="BOOLEAN")
+            union_modifier.operation = "UNION"
+            union_modifier.solver = "EXACT"
+            union_modifier.object = a_dot
+            bpy.ops.object.modifier_apply(modifier=union_modifier.name)
+            bpy.data.objects.remove(a_dot, do_unlink=True)
+
+        if binary[1] == "1":
+            braille_dot_obj.location.x = dot_x_offset
+            braille_dot_obj.location.y = dot_y_offset - braille_dot_spacing
+            b_dot = braille_dot_obj.copy()
+            union_modifier = line_obj.modifiers.new(name="Dot Union", type="BOOLEAN")
+            union_modifier.operation = "UNION"
+            union_modifier.solver = "EXACT"
+            union_modifier.object = b_dot
+            bpy.ops.object.modifier_apply(modifier=union_modifier.name)
+            bpy.data.objects.remove(b_dot, do_unlink=True)
+
+        if binary[2] == "1":
+            braille_dot_obj.location.x = dot_x_offset
+            braille_dot_obj.location.y = dot_y_offset - (2 * braille_dot_spacing)
+            c_dot = braille_dot_obj.copy()
+            union_modifier = line_obj.modifiers.new(name="Dot Union", type="BOOLEAN")
+            union_modifier.operation = "UNION"
+            union_modifier.solver = "EXACT"
+            union_modifier.object = c_dot
+            bpy.ops.object.modifier_apply(modifier=union_modifier.name)
+            bpy.data.objects.remove(c_dot, do_unlink=True)
+
+        if binary[3] == "1":
+            braille_dot_obj.location.x = dot_x_offset - braille_dot_spacing
+            braille_dot_obj.location.y = dot_y_offset
+            d_dot = braille_dot_obj.copy()
+            union_modifier = line_obj.modifiers.new(name="Dot Union", type="BOOLEAN")
+            union_modifier.operation = "UNION"
+            union_modifier.solver = "EXACT"
+            union_modifier.object = d_dot
+            bpy.ops.object.modifier_apply(modifier=union_modifier.name)
+            bpy.data.objects.remove(d_dot, do_unlink=True)
+
+        if binary[4] == "1":
+            braille_dot_obj.location.x = dot_x_offset - braille_dot_spacing
+            braille_dot_obj.location.y = dot_y_offset - braille_dot_spacing
+            e_dot = braille_dot_obj.copy()
+            union_modifier = line_obj.modifiers.new(name="Dot Union", type="BOOLEAN")
+            union_modifier.operation = "UNION"
+            union_modifier.solver = "EXACT"
+            union_modifier.object = e_dot
+            bpy.ops.object.modifier_apply(modifier=union_modifier.name)
+            bpy.data.objects.remove(e_dot, do_unlink=True)
+
+        if binary[5] == "1":
+            braille_dot_obj.location.x = dot_x_offset - braille_dot_spacing
+            braille_dot_obj.location.y = dot_y_offset - (2 * braille_dot_spacing)
+            f_dot = braille_dot_obj.copy()
+            union_modifier = line_obj.modifiers.new(name="Dot Union", type="BOOLEAN")
+            union_modifier.operation = "UNION"
+            union_modifier.solver = "EXACT"
+            union_modifier.object = f_dot
+            bpy.ops.object.modifier_apply(modifier=union_modifier.name)
+            bpy.data.objects.remove(f_dot, do_unlink=True)
 
 if __name__ == "__main__":
     main()
