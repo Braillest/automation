@@ -136,9 +136,10 @@ def main():
     # draw_paper()
 
     # Iterate over all pages
-    for page_number in range(1, 215):
+    for page_index in range(215):
 
         # Read in file
+        page_number = page_index + 1
         file_path = f"C:\\Users\\ramit\\Braillest\\automation\data\\revised-pages\\{page_number}.txt"
         with open(file_path, "r", encoding="utf-8") as file:
             lines = file.readlines()
