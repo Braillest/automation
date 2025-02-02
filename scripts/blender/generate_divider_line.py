@@ -135,14 +135,19 @@ def main():
 
     # draw_paper()
 
-    with open(file_path, "r", encoding="utf-8") as file:
-        lines = file.readlines()
+    # Iterate over all pages
+    for page_number in range(1, 215):
 
-    # Worst case page override for debugging
-    # lines = ["⠿⠿⠿⠿⠿⠿⠿⠿⠿⠿⠿⠿⠿⠿⠿⠿⠿⠿⠿⠿⠿⠿⠿⠿⠿⠿⠿⠿⠿⠿⠿⠿⠿"] * cell_y_count
+        # Read in file
+        file_path = f"C:\\Users\\ramit\\Braillest\\automation\data\\revised-pages\\{page_number}.txt"
+        with open(file_path, "r", encoding="utf-8") as file:
+            lines = file.readlines()
 
-    for index, text in enumerate(lines):
-        draw_line(index, text.rstrip())
+        # Worst case page override for debugging
+        # lines = ["⠿⠿⠿⠿⠿⠿⠿⠿⠿⠿⠿⠿⠿⠿⠿⠿⠿⠿⠿⠿⠿⠿⠿⠿⠿⠿⠿⠿⠿⠿⠿⠿⠿"] * cell_y_count
+
+        for line_index, text in enumerate(lines):
+            draw_line(page_number, line_index, text.rstrip())
 
     # Remove persistent tools
     bpy.data.objects.remove(positive_alignment_tab_obj, do_unlink=True)
@@ -166,7 +171,7 @@ def draw_paper():
     paper_mat.diffuse_color = (0.8, 0.9, 0.9, 1.0) # RGBA
     paper_obj.data.materials.append(paper_mat)
 
-def draw_line(line_index, text):
+def draw_line(page_number, line_index, text):
 
     # Line
     line_x = (paper_w / 2)
@@ -232,16 +237,6 @@ def draw_line(line_index, text):
     alignment_hole_obj.location.x = paper_w + paper_margin_x + (alignment_hole_w / 2)
     right_alignment_hole_obj = alignment_hole_obj.copy()
     difference_collection.objects.link(right_alignment_hole_obj)
-
-    # Remove tools
-    # bpy.data.objects.remove(left_positive_alignment_tab_obj, do_unlink=True)
-    # bpy.data.objects.remove(right_positive_alignment_tab_obj, do_unlink=True)
-    # bpy.data.objects.remove(left_negative_alignment_tab_obj, do_unlink=True)
-    # bpy.data.objects.remove(right_negative_alignment_tab_obj, do_unlink=True)
-    # bpy.data.objects.remove(left_alignment_pin_obj, do_unlink=True)
-    # bpy.data.objects.remove(right_alignment_pin_obj, do_unlink=True)
-    # bpy.data.objects.remove(left_alignment_hole_obj, do_unlink=True)
-    # bpy.data.objects.remove(right_alignment_hole_obj, do_unlink=True)
 
     # Draw dots
     for character_index, character in enumerate(text):
@@ -319,6 +314,16 @@ def draw_line(line_index, text):
     for object in list(difference_collection.objects):
         bpy.data.objects.remove(object, do_unlink=True)
     bpy.data.collections.remove(difference_collection)
+
+    # Export line as STL
+    bpy.context.view_layer.objects.active = line_obj
+    line_obj.select_set(True)
+    stl_path = f"C:\\Users\\ramit\\Braillest\\automation\data\\stl-exports\\{page_number:03d}-{line_index + 1:02d}.stl"
+    bpy.ops.wm.stl_export(filepath=str(stl_path), export_selected_objects=True, global_scale=scaling_factor)
+    line_obj.select_set(False)
+
+    # Remove line
+    bpy.data.objects.remove(line_obj, do_unlink=True)
 
 if __name__ == "__main__":
     main()

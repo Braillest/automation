@@ -4,6 +4,7 @@ data/formatted/*
 data/pages/*
 data/revised-pages/*
 data/revisions/*
+data/stl-exports/*
 data/back-translation/*
 data/text/*
 
