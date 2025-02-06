@@ -83,8 +83,8 @@ class Book:
         self.dot_y_spacing = 2.5 / 10
 
         # Page size
-        self.page_x_size = 215.9 / 10 # 8.5 in
-        self.page_y_size = 279.4 / 10 # 11 in
+        self.page_x_size = 216 / 10 # 8.5 in
+        self.page_y_size = 280 / 10 # 11 in
 
         # Character size
         self.character_x_size = 6 / 10
@@ -92,7 +92,7 @@ class Book:
 
         # Caculate the max size character grid given constraints
         # - 2 for 1 character border
-        self.character_x_count = math.floor(self.page_x_size / self.character_x_size) - 2
+        self.character_x_count = math.floor(self.page_x_size / self.character_x_size) - 2 - 1
         self.character_y_count = math.floor(self.page_y_size / self.character_y_size) - 2
 
         # The offset of the lines within the page
