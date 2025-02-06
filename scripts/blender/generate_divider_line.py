@@ -158,7 +158,7 @@ def main():
     # (lines with just the negatives for the first page)
 
     # Iterate over all pages
-    for page_index in range(215):
+    for page_index in range(3):
 
         page_number = page_index + 1
         positive_file_path = f"{pages_dir}{page_index}.txt"
@@ -202,8 +202,6 @@ def main():
                 print(f"p[{page_number:03d}][{line_index + 1:02d}][-] \"{negative_text}\"")
 
             draw_line(page_number, line_index, positive_text, negative_text, enable_alignment_pins, enable_alignment_holes, export, cleanup, debug)
-
-        break
 
     # Remove persistent tools
     bpy.data.objects.remove(positive_alignment_tab_obj, do_unlink=True)
@@ -331,13 +329,13 @@ def draw_line(page_number, line_index, positive_text, negative_text, enable_alig
         # Half alignment pin and difference
         alignment_hole_obj.rotation_euler.z = math.radians(90)
         alignment_hole_obj.scale.y /= 2
-        alignment_hole_obj.location.x += alignment_hole_h / 4
+        alignment_hole_obj.location.x -= alignment_hole_h / 4
 
         left_alignment_hole_obj = alignment_hole_obj.copy()
 
         alignment_hole_obj.rotation_euler.z = 0
         alignment_hole_obj.scale.y *= 2
-        alignment_hole_obj.location.x -= alignment_hole_h / 4
+        alignment_hole_obj.location.x += alignment_hole_h / 4
 
         difference_collection.objects.link(left_alignment_hole_obj)
 
@@ -364,7 +362,7 @@ def draw_line(page_number, line_index, positive_text, negative_text, enable_alig
     for character_index, character in enumerate(positive_text):
 
         # NW corner
-        cell_x_offset = paper_padding_x + (character_index * cell_w) + (cell_w / 2)
+        cell_x_offset = paper_padding_x + (character_index * cell_w) + (cell_w / 2) + cell_w
         cell_y_offset = paper_padding_y + ((cell_y_count - line_index - 1) * cell_h) + (cell_h / 2)
 
         # NW dot
@@ -419,7 +417,7 @@ def draw_line(page_number, line_index, positive_text, negative_text, enable_alig
     for character_index, character in enumerate(negative_text):
 
         # NW corner
-        cell_x_offset = paper_padding_x + (character_index * cell_w) + (cell_w / 2)
+        cell_x_offset = paper_padding_x + (character_index * cell_w) + (cell_w / 2) + cell_w
         cell_y_offset = paper_padding_y + ((cell_y_count - line_index - 1) * cell_h) + (cell_h / 2)
 
         # NW dot
