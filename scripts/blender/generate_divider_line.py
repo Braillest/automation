@@ -3,18 +3,16 @@ import math
 import os
 
 # Define global vars
-# file_path = "/braillest/data/revised-pages/1.txt"
-# file_path = "../../data/revised-pages/1.txt"
-pages_dir = "C:\\Users\\ramit\\Braillest\\automation\data\\revised-pages\\"
+pages_dir = "C:\\Users\\ramit\\Braillest\\automation\data\\pages\\"
 scaling_factor = 1.005
 space_character = "⠀"
 
 alignment_hole_w = 1.0
-alignment_hole_h = 4.6
+alignment_hole_h = 5.1
 alignment_hole_d = 1.4
 
 alignment_pin_w = 0.9
-alignment_pin_h = 4.5
+alignment_pin_h = 5.0
 alignment_pin_d = 1.2
 
 braille_dot_diameter = 1.5
@@ -28,19 +26,24 @@ paper_w = 216
 paper_h = 280
 paper_d = 0.2
 
+# MAX : 36 x 28
+# PAD : (3 + [32] + 1) x (1 + [26] + 1)
+# USE : 32 x 26
 cell_padding_x = 1.75
 cell_padding_y = 2.5
 cell_w = 6
-cell_x_count = math.floor(paper_w / cell_w) - 2
+max_cell_x_count = math.floor(paper_w / cell_w)
+cell_x_count = max_cell_x_count - 3 - 1
 cell_h = 10
-cell_y_count = math.floor(paper_h / cell_h) - 2
+max_cell_y_count = math.floor(paper_h / cell_h)
+cell_y_count = max_cell_y_count - 2
 
 content_w = cell_x_count * cell_w
 content_h = cell_y_count * cell_h
 
 paper_margin_x = 0.1
 paper_margin_y = 0.1
-paper_padding_x = (paper_w - content_w) / 2
+paper_padding_x = (cell_w * 3)
 paper_padding_y = (paper_h - content_h) / 2
 
 top_line_margin_y = 2
@@ -48,13 +51,13 @@ top_line_margin_y = 2
 mold_interface_d = 0.2
 mold_negative_d = alignment_hole_d + mold_interface_d
 
-negative_tab_w = 4.6
-negative_tab_h = 4.5
+negative_tab_w = 6
+negative_tab_h = 3
 
-positive_tab_w = 4.5
-positive_tab_h = 4.5
+positive_tab_w = 6
+positive_tab_h = 3
 
-tab_h = 2
+tab_h = 1.5
 
 puzzle_w = 10
 puzzle_h = cell_h
@@ -235,7 +238,7 @@ def draw_line(page_number, line_index, positive_text, negative_text, enable_alig
 
     # Line
     line_x = (paper_w / 2)
-    line_y = paper_padding_y + (cell_y_count - line_index - 1) * cell_h
+    line_y = paper_padding_y + (cell_y_count - 1 - line_index) * cell_h + (cell_h / 2)
     line_z = (mold_negative_d / 2)
     line_location = (line_x, line_y, line_z)
     line_scale = (line_w / 2, line_h / 2, line_d / 2)
@@ -362,8 +365,8 @@ def draw_line(page_number, line_index, positive_text, negative_text, enable_alig
     for character_index, character in enumerate(positive_text):
 
         # NW corner
-        cell_x_offset = paper_padding_x + (character_index * cell_w) + (cell_w / 2) + cell_w
-        cell_y_offset = paper_padding_y + ((cell_y_count - line_index - 1) * cell_h) + (cell_h / 2)
+        cell_x_offset = paper_padding_x + (character_index * cell_w)
+        cell_y_offset = paper_padding_y + ((cell_y_count - line_index) * cell_h)
 
         # NW dot
         dot_x_offset = cell_x_offset + cell_padding_x
@@ -417,8 +420,8 @@ def draw_line(page_number, line_index, positive_text, negative_text, enable_alig
     for character_index, character in enumerate(negative_text):
 
         # NW corner
-        cell_x_offset = paper_padding_x + (character_index * cell_w) + (cell_w / 2) + cell_w
-        cell_y_offset = paper_padding_y + ((cell_y_count - line_index - 1) * cell_h) + (cell_h / 2)
+        cell_x_offset = paper_padding_x + (character_index * cell_w)
+        cell_y_offset = paper_padding_y + ((cell_y_count - line_index) * cell_h)
 
         # NW dot
         dot_x_offset = cell_x_offset + cell_padding_x
