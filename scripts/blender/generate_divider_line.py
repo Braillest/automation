@@ -46,8 +46,6 @@ paper_margin_y = 0.1
 paper_padding_x = (cell_w * 3)
 paper_padding_y = (paper_h - content_h) / 2
 
-top_line_margin_y = 2
-
 mold_interface_d = 0.2
 mold_negative_d = alignment_hole_d + mold_interface_d
 
